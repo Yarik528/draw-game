@@ -3,32 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Draw & Guess - Игра</title>
+    <title>Draw & Guess</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             height: 100vh;
             overflow: hidden;
+            background: #f0f2f5;
         }
 
-        /* ЭКРАНЫ */
-        .screen {
-            display: none;
-            width: 100vw;
-            height: 100vh;
+        /* ===== ПЕРЕКЛЮЧАТЕЛЬ ВЕРСИЙ ===== */
+        .version-toggle {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
         }
 
-        .active {
-            display: block;
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #ccc;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: 0.3s;
         }
 
-        /* ЛОББИ - ПОЛНОЭКРАННОЕ С ГРАДИЕНТОМ */
+        .toggle-switch.active { background: #667eea; }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: 0.3s;
+        }
+
+        .toggle-switch.active::after { left: 26px; }
+
+        .version-label { font-weight: 600; color: #333; }
+
+        /* ===== ЭКРАНЫ ===== */
+        .screen { display: none; width: 100vw; height: 100vh; }
+        .active { display: block; }
+
+        /* ===== ЛОББИ ===== */
         #lobby-screen {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
@@ -38,34 +72,33 @@
 
         .lobby-container {
             background: white;
-            padding: 50px;
+            padding: 40px;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            min-width: 500px;
-            text-align: center;
+            width: 90%;
+            max-width: 500px;
         }
 
         .lobby-container h2 {
-            font-size: 32px;
-            margin-bottom: 10px;
-            color: #333;
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 5px;
         }
 
-        .lobby-container .emoji {
-            font-size: 40px;
-            margin-bottom: 20px;
+        .lobby-subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 25px;
+            font-size: 14px;
         }
 
-        .input-group {
-            margin: 20px 0;
-            text-align: left;
-        }
-
+        .input-group { margin: 15px 0; }
         .input-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             color: #555;
             font-weight: 600;
+            font-size: 14px;
         }
 
         .input-group input {
@@ -73,8 +106,7 @@
             padding: 12px 15px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
+            font-size: 15px;
         }
 
         .input-group input:focus {
@@ -82,61 +114,89 @@
             border-color: #667eea;
         }
 
+        /* Переключатель режимов (создать/войти) */
+        .mode-tabs {
+            display: flex;
+            background: #f0f0f0;
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: 0.3s;
+            color: #666;
+        }
+
+        .mode-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Аватары */
         .avatar-select {
             display: flex;
             justify-content: center;
-            gap: 15px;
-            margin: 20px 0;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
         }
 
         .avatar-option {
-            width: 50px;
-            height: 50px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             cursor: pointer;
             border: 3px solid transparent;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
-            transition: all 0.3s;
+            font-size: 24px;
             background: #f5f5f5;
+            transition: 0.2s;
         }
 
-        .avatar-option:hover {
-            transform: scale(1.1);
-        }
-
+        .avatar-option:hover { transform: scale(1.1); }
         .avatar-option.selected {
             border-color: #667eea;
             background: #e8e8ff;
-            transform: scale(1.15);
         }
 
         .btn-primary {
+            width: 100%;
+            padding: 14px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 15px 40px;
-            font-size: 18px;
             border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
-            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
         }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-        }
+        .btn-primary:hover { opacity: 0.9; }
 
         .error-msg {
             color: #e74c3c;
+            text-align: center;
             margin-top: 10px;
             font-size: 14px;
         }
 
-        /* ЭКРАН ОЖИДАНИЯ */
+        .password-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        /* ===== ОЖИДАНИЕ ===== */
         #waiting-screen {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
@@ -146,82 +206,62 @@
             color: white;
         }
 
-        #waiting-screen h2 {
-            font-size: 40px;
-            margin-bottom: 20px;
-        }
-
-        #waiting-screen .room-code {
+        #waiting-screen h2 { font-size: 36px; margin-bottom: 20px; }
+        .room-code {
             background: rgba(255,255,255,0.2);
-            padding: 20px 40px;
+            padding: 15px 30px;
             border-radius: 10px;
-            font-size: 28px;
+            font-size: 24px;
             font-weight: bold;
-            margin: 20px 0;
+            margin: 15px 0;
         }
 
-        .loader {
-            font-size: 60px;
-            animation: bounce 1s infinite;
-        }
-
+        .loader { font-size: 50px; animation: bounce 1s infinite; }
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
+            50% { transform: translateY(-15px); }
         }
 
-        /* ИГРОВОЙ ЭКРАН */
-        #game-screen {
-            background: #f0f2f5;
-        }
+        /* ===== ИГРОВОЙ ЭКРАН ===== */
+        #game-screen { background: #f0f2f5; }
 
         .game-header {
             background: white;
-            padding: 15px 30px;
+            padding: 12px 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
-        .game-info {
-            display: flex;
-            gap: 30px;
-            align-items: center;
-        }
+        .game-info { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 
         .role-badge {
-            padding: 8px 20px;
+            padding: 6px 15px;
             border-radius: 20px;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 14px;
         }
-
-        .role-artist {
-            background: #a8e6cf;
-            color: #2d6a4f;
-        }
-
-        .role-guesser {
-            background: #dcd6f7;
-            color: #5a4fcf;
-        }
+        .role-artist { background: #a8e6cf; color: #2d6a4f; }
+        .role-guesser { background: #dcd6f7; color: #5a4fcf; }
 
         .word-display {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
-            letter-spacing: 8px;
+            letter-spacing: 5px;
             color: #333;
         }
 
         .game-main {
             display: flex;
-            height: calc(100vh - 70px);
+            height: calc(100vh - 60px);
         }
 
         .canvas-section {
             flex: 1;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             flex-direction: column;
         }
@@ -242,74 +282,47 @@
             border-radius: 5px;
             cursor: crosshair;
             background: white;
+            touch-action: none;
         }
 
         .tools-panel {
             background: white;
-            padding: 15px;
+            padding: 12px;
             border-radius: 10px;
-            margin-top: 15px;
+            margin-top: 10px;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
             flex-wrap: wrap;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        .tool-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .tool-label {
-            font-size: 14px;
-            color: #666;
-            font-weight: 600;
-        }
+        .tool-group { display: flex; align-items: center; gap: 8px; }
+        .tool-label { font-size: 13px; color: #666; font-weight: 600; }
 
         #color-picker {
-            width: 40px;
-            height: 40px;
+            width: 35px;
+            height: 35px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
         }
 
         .btn-tool {
-            padding: 8px 15px;
+            padding: 7px 12px;
             border: 2px solid #e0e0e0;
             background: white;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
+            font-size: 13px;
         }
+        .btn-tool:hover { border-color: #667eea; }
+        .btn-tool.active { background: #667eea; color: white; border-color: #667eea; }
+        .btn-clear { background: #e74c3c; color: white; border-color: #e74c3c; }
 
-        .btn-tool:hover {
-            background: #f5f5f5;
-            border-color: #667eea;
-        }
-
-        .btn-tool.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-
-        .btn-clear {
-            background: #e74c3c;
-            color: white;
-            border-color: #e74c3c;
-        }
-
-        .btn-clear:hover {
-            background: #c0392b;
-        }
-
-        /* БОКОВАЯ ПАНЕЛЬ */
+        /* ===== САЙДБАР ===== */
         .sidebar {
-            width: 350px;
+            width: 320px;
             background: white;
             border-left: 1px solid #e0e0e0;
             display: flex;
@@ -317,194 +330,161 @@
         }
 
         .players-section {
-            padding: 15px;
+            padding: 12px;
             border-bottom: 1px solid #e0e0e0;
             background: #f8f9fa;
         }
+        .players-section h3 { margin-bottom: 8px; font-size: 15px; }
 
-        .players-section h3 {
-            margin-bottom: 10px;
-            color: #333;
-            font-size: 16px;
-        }
-
-        .player-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
+        .player-list { display: flex; flex-direction: column; gap: 6px; }
         .player-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px;
+            gap: 8px;
+            padding: 6px;
             background: white;
             border-radius: 8px;
         }
+        .player-avatar { font-size: 20px; }
+        .player-name { font-weight: 600; font-size: 14px; }
 
-        .player-avatar {
-            font-size: 24px;
-        }
-
-        .player-name {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .chat-section {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
+        .chat-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         #chat-box {
             flex: 1;
             overflow-y: auto;
-            padding: 15px;
+            padding: 12px;
             background: #fafafa;
         }
 
-        .message {
-            margin-bottom: 12px;
-            line-height: 1.4;
-        }
-
-        .message-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
-        }
-
-        .message-avatar {
-            font-size: 18px;
-        }
-
-        .message-author {
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .message-text {
-            color: #333;
-            margin-left: 26px;
-        }
-
-        .message.system {
-            text-align: center;
-            color: #27ae60;
-            font-weight: bold;
-            margin: 15px 0;
-        }
-
+        .message { margin-bottom: 10px; line-height: 1.4; }
+        .message-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+        .message-avatar { font-size: 16px; }
+        .message-author { font-weight: bold; color: #667eea; font-size: 13px; }
+        .message-text { color: #333; margin-left: 22px; font-size: 14px; }
+        .message.system { text-align: center; color: #27ae60; font-weight: bold; margin: 12px 0; }
         .message.win {
             background: #d4edda;
             padding: 10px;
             border-radius: 8px;
             text-align: center;
-            font-size: 18px;
+            font-size: 16px;
             color: #155724;
         }
 
-        .chat-input-section {
-            padding: 15px;
-            border-top: 1px solid #e0e0e0;
-            background: white;
-        }
-
-        .chat-input-wrapper {
-            display: flex;
-            gap: 10px;
-        }
-
+        .chat-input-section { padding: 12px; border-top: 1px solid #e0e0e0; }
+        .chat-input-wrapper { display: flex; gap: 8px; }
         #chat-input {
             flex: 1;
-            padding: 12px 15px;
+            padding: 10px 12px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 14px;
         }
-
-        #chat-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
+        #chat-input:focus { outline: none; border-color: #667eea; }
         .btn-send {
-            padding: 12px 25px;
+            padding: 10px 20px;
             background: #667eea;
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 15px;
             font-weight: 600;
         }
 
-        .btn-send:hover {
-            background: #5568d3;
-        }
-
-        /* ВЫБОР СЛОВА */
+        /* ===== ВЫБОР СЛОВА ===== */
         #word-selection {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 40px;
+            padding: 30px;
             border-radius: 15px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             text-align: center;
             z-index: 100;
-            min-width: 400px;
+            min-width: 300px;
         }
-
-        #word-selection h3 {
-            margin-bottom: 25px;
-            font-size: 24px;
-            color: #333;
-        }
-
-        .word-options {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
+        #word-selection h3 { margin-bottom: 20px; font-size: 20px; }
+        .word-options { display: flex; flex-direction: column; gap: 10px; }
         .word-btn {
-            padding: 15px 30px;
+            padding: 12px 25px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 8px;
-            font-size: 18px;
+            font-size: 16px;
             cursor: pointer;
-            transition: transform 0.2s;
+        }
+        .word-btn:hover { opacity: 0.9; }
+
+        /* ===== МОБИЛЬНАЯ ВЕРСИЯ ===== */
+        body.mobile-mode .game-main {
+            flex-direction: column;
         }
 
-        .word-btn:hover {
-            transform: scale(1.05);
+        body.mobile-mode .sidebar {
+            width: 100%;
+            height: 40vh;
+            border-left: none;
+            border-top: 1px solid #e0e0e0;
         }
 
-        /* АДАПТИВНОСТЬ */
-        @media (max-width: 1024px) {
-            .sidebar {
-                width: 300px;
-            }
+        body.mobile-mode .canvas-section {
+            height: 60vh;
         }
+
+        body.mobile-mode .game-header {
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+
+        body.mobile-mode .word-display { font-size: 16px; }
+        body.mobile-mode .role-badge { font-size: 12px; padding: 4px 10px; }
+
+        body.mobile-mode .tools-panel {
+            padding: 8px;
+            gap: 6px;
+        }
+
+        body.mobile-mode .btn-tool { padding: 5px 8px; font-size: 11px; }
+
+        body.mobile-mode .lobby-container {
+            padding: 25px;
+            width: 95%;
+        }
+
+        body.mobile-mode .version-toggle {
+            top: 10px;
+            right: 10px;
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+
+        body.mobile-mode #chat-box { height: 150px; }
     </style>
 </head>
 <body>
 
+    <!-- Переключатель версий -->
+    <div class="version-toggle">
+        <span class="version-label" id="version-label">️ ПК</span>
+        <div class="toggle-switch" id="version-switch" onclick="toggleVersion()"></div>
+    </div>
+
     <!-- ЛОББИ -->
     <div id="lobby-screen" class="screen active">
         <div class="lobby-container">
-            <div class="emoji">🎨</div>
+            <div style="text-align:center; font-size: 36px; margin-bottom: 10px;">🎨</div>
             <h2>Вход в игру</h2>
-            
+            <div class="lobby-subtitle">Рисуй и угадывай с друзьями</div>
+
+            <!-- Переключатель режимов -->
+            <div class="mode-tabs">
+                <div class="mode-tab active" id="tab-join" onclick="switchMode('join')">🚪 Войти</div>
+                <div class="mode-tab" id="tab-create" onclick="switchMode('create')">➕ Создать</div>
+            </div>
+
             <div class="input-group">
                 <label>Ваш никнейм</label>
                 <input type="text" id="nickname" placeholder="Введите ваше имя" maxlength="12">
@@ -516,20 +496,26 @@
             </div>
 
             <div class="input-group">
-                <label>Комната</label>
-                <input type="text" id="room-id" placeholder="Название комнаты (пароль)" maxlength="20">
+                <label>Название комнаты</label>
+                <input type="text" id="room-id" placeholder="Например: myroom123" maxlength="20">
             </div>
 
-            <button class="btn-primary" onclick="joinGame()">Войти / Создать</button>
+            <div class="input-group" id="password-group">
+                <label id="password-label">Пароль комнаты</label>
+                <input type="password" id="room-password" placeholder="Оставьте пустым, если без пароля" maxlength="20">
+                <div class="password-hint" id="password-hint">Если пароль не задан — комната будет открытой</div>
+            </div>
+
+            <button class="btn-primary" id="action-btn" onclick="handleAction()">Войти в комнату</button>
             <div id="lobby-error" class="error-msg"></div>
         </div>
     </div>
 
     <!-- ОЖИДАНИЕ -->
     <div id="waiting-screen" class="screen">
-        <h2>⌛ Ожидание игрока</h2>
+        <h2>⌛ Ожидание игроков</h2>
         <div class="room-code" id="display-room-id"></div>
-        <p>Отправьте это название комнаты другу</p>
+        <p>Отправьте название комнаты друзьям</p>
         <div class="loader">⏳</div>
     </div>
 
@@ -538,11 +524,11 @@
         <div class="game-header">
             <div class="game-info">
                 <span id="role-display" class="role-badge"></span>
-                <span style="font-size: 20px;">🎯 Слово:</span>
+                <span>🎯 Слово:</span>
                 <span id="secret-word-mask" class="word-display">???</span>
             </div>
-            <div style="font-size: 18px; color: #666;">
-                🏠 Комната: <b id="room-name-display"></b>
+            <div style="font-size: 14px; color: #666;">
+                 <b id="room-name-display"></b>
             </div>
         </div>
 
@@ -551,21 +537,21 @@
                 <div class="canvas-container">
                     <canvas id="board"></canvas>
                     <div id="word-selection" style="display: none;">
-                        <h3>Выберите слово для рисования:</h3>
+                        <h3>Выберите слово:</h3>
                         <div class="word-options" id="words-options"></div>
                     </div>
                 </div>
                 
                 <div class="tools-panel" id="artist-tools" style="display: none;">
                     <div class="tool-group">
-                        <span class="tool-label">🎨 Цвет:</span>
+                        <span class="tool-label"></span>
                         <input type="color" id="color-picker" value="#000000">
                     </div>
                     <div class="tool-group">
-                        <span class="tool-label">📏 Размер:</span>
-                        <button class="btn-tool active" onclick="changeSize(3)">Тонкий</button>
-                        <button class="btn-tool" onclick="changeSize(8)">Средний</button>
-                        <button class="btn-tool" onclick="changeSize(15)">Толстый</button>
+                        <span class="tool-label">📏</span>
+                        <button class="btn-tool active" onclick="changeSize(3, this)">Тонкий</button>
+                        <button class="btn-tool" onclick="changeSize(8, this)">Средний</button>
+                        <button class="btn-tool" onclick="changeSize(15, this)">Толстый</button>
                     </div>
                     <div class="tool-group" style="margin-left: auto;">
                         <button class="btn-tool btn-clear" onclick="clearBoard()">🗑️ Очистить</button>
@@ -598,15 +584,15 @@
         let myNickname = "";
         let myAvatar = "";
         let myRoom = "";
+        let myPassword = "";
         let isArtist = false;
-        let currentSecretWord = "";
+        let currentMode = 'join'; // 'join' или 'create'
         let lineWidth = 3;
 
-        // Аватарки
-        const avatars = ['🐶', '🐱', '🦊', '', '🦄', '🤖', '🐼', '🦁'];
+        const avatars = ['🐶', '', '🦊', '🐸', '🦄', '🤖', '', '🦁'];
         let selectedAvatarIdx = 0;
 
-        // Инициализация аватаров
+        // Аватары
         const avatarContainer = document.getElementById('avatar-container');
         avatars.forEach((av, idx) => {
             const el = document.createElement('div');
@@ -620,20 +606,52 @@
             avatarContainer.appendChild(el);
         });
 
-        // Подстройка canvas под размер
-        function resizeCanvas() {
-            const canvas = document.getElementById('board');
-            const container = canvas.parentElement;
-            canvas.width = container.clientWidth - 20;
-            canvas.height = container.clientHeight - 20;
+        // ===== ПЕРЕКЛЮЧАТЕЛЬ ВЕРСИЙ =====
+        function toggleVersion() {
+            const body = document.body;
+            const sw = document.getElementById('version-switch');
+            const label = document.getElementById('version-label');
+            
+            if (body.classList.contains('mobile-mode')) {
+                body.classList.remove('mobile-mode');
+                sw.classList.remove('active');
+                label.innerText = '️ ПК';
+            } else {
+                body.classList.add('mobile-mode');
+                sw.classList.add('active');
+                label.innerText = '📱 Мобильная';
+            }
         }
 
-        window.addEventListener('resize', resizeCanvas);
+        // ===== ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ =====
+        function switchMode(mode) {
+            currentMode = mode;
+            const tabJoin = document.getElementById('tab-join');
+            const tabCreate = document.getElementById('tab-create');
+            const btn = document.getElementById('action-btn');
+            const passLabel = document.getElementById('password-label');
+            const passHint = document.getElementById('password-hint');
 
-        // Лобби
-        function joinGame() {
+            if (mode === 'join') {
+                tabJoin.classList.add('active');
+                tabCreate.classList.remove('active');
+                btn.innerText = 'Войти в комнату';
+                passLabel.innerText = 'Пароль комнаты';
+                passHint.innerText = 'Введите пароль, если комната защищена';
+            } else {
+                tabCreate.classList.add('active');
+                tabJoin.classList.remove('active');
+                btn.innerText = 'Создать комнату';
+                passLabel.innerText = 'Установить пароль (опционально)';
+                passHint.innerText = 'Оставьте пустым для открытой комнаты';
+            }
+        }
+
+        // ===== ДЕЙСТВИЕ =====
+        function handleAction() {
             const nick = document.getElementById('nickname').value.trim();
             const room = document.getElementById('room-id').value.trim();
+            const password = document.getElementById('room-password').value.trim();
             
             if (!nick || !room) {
                 document.getElementById('lobby-error').innerText = "Введите ник и название комнаты!";
@@ -643,8 +661,23 @@
             myNickname = nick;
             myAvatar = avatars[selectedAvatarIdx];
             myRoom = room;
+            myPassword = password;
 
-            socket.emit('joinRoom', { roomId: myRoom, nickname: myNickname, avatar: myAvatar });
+            if (currentMode === 'create') {
+                socket.emit('createRoom', { 
+                    roomId: myRoom, 
+                    nickname: myNickname, 
+                    avatar: myAvatar, 
+                    password: myPassword 
+                });
+            } else {
+                socket.emit('joinRoom', { 
+                    roomId: myRoom, 
+                    nickname: myNickname, 
+                    avatar: myAvatar, 
+                    password: myPassword 
+                });
+            }
         }
 
         socket.on('errorMsg', (msg) => {
@@ -673,11 +706,11 @@
         });
 
         socket.on('opponentLeft', () => {
-            alert("Соперник покинул игру");
+            alert("Игрок покинул игру");
             location.reload();
         });
 
-        // Игра
+        // ===== ИГРА =====
         function startRoundSetup() {
             isArtist = Math.random() > 0.5;
             updateRoleUI();
@@ -697,20 +730,23 @@
             if (isArtist) {
                 tools.style.display = 'flex';
                 roleDisplay.className = 'role-badge role-artist';
-                roleDisplay.innerText = '🎨 Вы: ХУДОЖНИК';
+                roleDisplay.innerText = '🎨 ХУДОЖНИК';
             } else {
                 tools.style.display = 'none';
                 roleDisplay.className = 'role-badge role-guesser';
-                roleDisplay.innerText = '🕵️ Вы: УГАДЫВАЮЩИЙ';
+                roleDisplay.innerText = '🕵️ УГАДЫВАЮЩИЙ';
             }
         }
 
         function showWordSelection() {
-            const words = ["Яблоко", "Машина", "Дом", "Кот", "Солнце", "Пицца", "Телефон", "Дерево"];
+            const words = ["Яблоко", "Машина", "Дом", "Кот", "Солнце", "Пицца", "Телефон", "Дерево", "Мяч", "Книга"];
             const container = document.getElementById('words-options');
             container.innerHTML = '';
             
-            words.forEach(w => {
+            // Выбираем 3 случайных
+            const shuffled = words.sort(() => 0.5 - Math.random()).slice(0, 3);
+            
+            shuffled.forEach(w => {
                 const btn = document.createElement('button');
                 btn.className = 'word-btn';
                 btn.innerText = w;
@@ -726,49 +762,47 @@
             document.getElementById('word-selection').style.display = 'none';
             document.getElementById('secret-word-mask').innerText = word;
             socket.emit('setSecretWord', word);
-            addSystemMessage(`Вы выбрали: ${word}. Нарисуйте это!`);
+            addSystemMessage(`Вы выбрали: ${word}. Нарисуйте!`);
         }
 
-        // Рисование
+        // ===== РИСОВАНИЕ =====
         const canvas = document.getElementById('board');
         const ctx = canvas.getContext('2d');
         let painting = false;
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth - 20;
+            canvas.height = container.clientHeight - 20;
+        }
+        window.addEventListener('resize', resizeCanvas);
 
         function startPosition(e) {
             if (!isArtist) return;
             painting = true;
             draw(e);
         }
-
         function endPosition() {
             painting = false;
             ctx.beginPath();
         }
-
         function draw(e) {
             if (!painting || !isArtist) return;
-            
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            
             const x = (e.clientX - rect.left) * scaleX;
             const y = (e.clientY - rect.top) * scaleY;
 
             ctx.lineWidth = lineWidth;
             ctx.lineCap = 'round';
             ctx.strokeStyle = document.getElementById('color-picker').value;
-
             ctx.lineTo(x, y);
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(x, y);
 
-            socket.emit('draw', {
-                x: x, y: y,
-                color: ctx.strokeStyle,
-                width: lineWidth
-            });
+            socket.emit('draw', { x, y, color: ctx.strokeStyle, width: lineWidth });
         }
 
         socket.on('draw', (data) => {
@@ -784,34 +818,33 @@
         canvas.addEventListener('mousedown', startPosition);
         canvas.addEventListener('mouseup', endPosition);
         canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e.touches[0]); });
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); endPosition(); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
 
-        function changeSize(size) {
+        function changeSize(size, btn) {
             lineWidth = size;
-            document.querySelectorAll('.tools-panel .btn-tool').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
+            document.querySelectorAll('.tools-panel .btn-tool').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
         }
 
         function clearBoard() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             socket.emit('clearCanvas');
         }
-
         socket.on('clearCanvas', () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         });
 
-        // Чат
+        // ===== ЧАТ =====
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const msg = input.value.trim();
             if (msg) {
-                socket.emit('chatMessage', { msg: msg, roomId: myRoom });
+                socket.emit('chatMessage', { msg, roomId: myRoom });
                 input.value = '';
             }
         }
-
         document.getElementById('chat-input').addEventListener('keyup', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
@@ -823,7 +856,7 @@
             
             if (data.correct) {
                 div.classList.add('win');
-                div.innerHTML = `🎉 ${data.user} угадал слово!<br><small>${data.text}</small>`;
+                div.innerHTML = ` ${data.user} угадал!<br><small>${data.text}</small>`;
             } else {
                 div.innerHTML = `
                     <div class="message-header">
@@ -833,17 +866,14 @@
                     <div class="message-text">${data.text}</div>
                 `;
             }
-            
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         });
 
         socket.on('winGame', (word) => {
-            addSystemMessage(`🎮 Игра окончена! Слово было: ${word}`);
+            addSystemMessage(` Слово было: ${word}`);
             setTimeout(() => {
-                if(confirm("Новый раунд?")) {
-                    location.reload();
-                }
+                if(confirm("Новый раунд?")) location.reload();
             }, 2000);
         });
 
@@ -859,7 +889,7 @@
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'waiting-screen') {
+            if (id === 'waiting-screen') {
                 document.getElementById('display-room-id').innerText = myRoom;
             }
         }
