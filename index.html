@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Online Draw & Guess</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        
+        /* Экраны */
+        .screen { display: none; width: 100%; max-width: 800px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .active { display: block; }
+
+        /* Лобби */
+        input, button { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ccc; }
+        button { cursor: pointer; background: #6c5ce7; color: white; border: none; }
+        button:hover { background: #5b4bc4; }
+        
+        .avatar-select { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
+        .avatar-option { width: 40px; height: 40px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+        .avatar-option.selected { border-color: #6c5ce7; transform: scale(1.1); }
+
+        /* Игровая зона */
+        .game-layout { display: flex; gap: 20px; flex-wrap: wrap; }
+        .canvas-area { flex: 2; min-width: 300px; position: relative; }
+        .sidebar { flex: 1; min-width: 250px; display: flex; flex-direction: column; }
+
+        canvas { border: 2px solid #333; background: white; cursor: crosshair; width: 100%; touch-action: none; }
+        
+        /* Чат */
+        #chat-box { flex-grow: 1; border: 1px solid #ddd; overflow-y: auto; height: 300px; padding: 10px; background: #fafafa; margin-bottom: 10px; }
+        .msg { margin-bottom: 5px; }
+        .msg b { color: #333; }
+        .system-msg { color: green; font-weight: bold; text-align: center; }
+
+        /* Инструменты */
+        .tools { margin-top: 10px; display: flex; gap: 5px; align-items: center; }
+        
+        /* Выбор слова */
+        #word-selection { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.95); padding: 20px; border: 2px solid #6c5ce7; border-radius: 10px; text-align: center; z-index: 10; display: none; }
+        .word-btn { background: #00b894; margin: 5px; font-size: 16px; }
+
+        .player-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: #eee; border-radius: 5px;}
+        .mini-avatar { width: 30px; height: 30px; border-radius: 50%; }
+    </style>
+</head>
+<body>
+
+    <!-- ЭКРАН 1: ЛОББИ -->
+    <div id="lobby-screen" class="screen active">
+        <h2>🎨 Вход в игру</h2>
+        <input type="text" id="nickname" placeholder="Ваш никнейм" maxlength="12">
+        
+        <p>Выберите аватар:</p>
+        <div class="avatar-select" id="avatar-container">
+            <!-- Генерируется JS -->
+        </div>
+
+        <hr>
+        <h3>Комната</h3>
+        <input type="text" id="room-id" placeholder="Название комнаты (пароль)">
+        <button onclick="joinGame()">Войти / Создать</button>
+        <p id="lobby-error" style="color:red"></p>
+    </div>
+
+    <!-- ЭКРАН 2: ОЖИДАНИЕ -->
+    <div id="waiting-screen" class="screen" style="text-align: center;">
+        <h2>Ожидание второго игрока...</h2>
+        <p>Отправьте этот код другу: <b id="display-room-id"></b></p>
+        <div class="loader">⏳</div>
+    </div>
+
+    <!-- ЭКРАН 3: ИГРА -->
+    <div id="game-screen" class="screen">
+        <div class="game-layout">
+            <div class="canvas-area">
+                <div style="margin-bottom: 5px;">
+                    <span id="role-display" style="font-weight: bold;"></span> | 
+                    Загадано: <span id="secret-word-mask">???</span>
+                </div>
+                <canvas id="board" width="600" height="400"></canvas>
+                
+                <!-- Меню выбора слова -->
+                <div id="word-selection">
+                    <h3>Выберите слово:</h3>
+                    <div id="words-options"></div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div id="players-list"></div>
+                <div id="chat-box"></div>
+                <div style="display: flex;">
+                    <input type="text" id="chat-input" placeholder="Угадай слово..." style="flex-grow: 1;">
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="tools" id="artist-tools" style="display: none;">
+            <input type="color" id="color-picker" value="#000000">
+            <button onclick="changeSize(5)">Тонко</button>
+            <button onclick="changeSize(10)">Толсто</button>
+            <button onclick="clearBoard()" style="background: #d63031;">Очистить</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myNickname = "";
+        let myAvatar = "";
+        let myRoom = "";
+        let isArtist = false;
+        let currentSecretWord = "";
+
+        // Аватарки (эмодзи)
+        const avatars = ['🐶', '🐱', '🦊', '🐸', '🦄', '🤖'];
+        let selectedAvatarIdx = 0;
+
+        // Инициализация выбора аватара
+        const avatarContainer = document.getElementById('avatar-container');
+        avatars.forEach((av, idx) => {
+            const el = document.createElement('div');
+            el.className = `avatar-option ${idx === 0 ? 'selected' : ''}`;
+            el.innerText = av;
+            el.style.fontSize = '24px';
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.onclick = () => {
+                document.querySelectorAll('.avatar-option').forEach(e => e.classList.remove('selected'));
+                el.classList.add('selected');
+                selectedAvatarIdx = idx;
+            };
+            avatarContainer.appendChild(el);
+        });
+
+        // --- ЛОГИКА ЛОББИ ---
+        function joinGame() {
+            const nick = document.getElementById('nickname').value.trim();
+            const room = document.getElementById('room-id').value.trim();
+            
+            if (!nick || !room) {
+                alert("Введите ник и название комнаты!");
+                return;
+            }
+
+            myNickname = nick;
+            myAvatar = avatars[selectedAvatarIdx];
+            myRoom = room;
+
+            socket.emit('joinRoom', { roomId: myRoom, nickname: myNickname, avatar: myAvatar });
+        }
+
+        socket.on('errorMsg', (msg) => alert(msg));
+
+        socket.on('updatePlayers', (players) => {
+            const list = document.getElementById('players-list');
+            list.innerHTML = '<h3>Игроки:</h3>';
+            Object.values(players).forEach(p => {
+                list.innerHTML += `<div class="player-info"><span class="mini-avatar">${p.avatar}</span> ${p.nickname}</div>`;
+            });
+        });
+
+        socket.on('gameReady', () => {
+            showScreen('game-screen');
+            startRoundSetup();
+        });
+
+        socket.on('opponentLeft', () => {
+            alert("Соперник покинул игру.");
+            location.reload();
+        });
+
+        // --- ИГРОВАЯ ЛОГИКА ---
+
+        function startRoundSetup() {
+            // Случайно выбираем, кто художник (по ID сокета, просто для примера первый в списке)
+            // В реальном приложении это решает сервер. Здесь упростим:
+            // Кто нажал "Войти" последним или просто рандом на клиенте (небезопасно, но для демо ок)
+            
+            // Для демо: пусть всегда первый подключившийся будет художником? 
+            // Сделаем проще: оба видят кнопку "Начать", но выбирать слово будет только один.
+            
+            // Упрощение: каждый раунд случайно выбираем художника локально (синхронизируем по времени сложно без серверной логики раундов)
+            // Пусть будет так: Мы генерируем слова. Если мы "Artist", мы их видим.
+            
+            // Чтобы определить роль, спросим сервер или сделаем рандом.
+            // Сделаем рандом:
+            isArtist = Math.random() > 0.5; 
+            
+            updateRoleUI();
+            
+            if (isArtist) {
+                showWordSelection();
+            } else {
+                document.getElementById('secret-word-mask').innerText = "Художник выбирает слово...";
+            }
+        }
+
+        function updateRoleUI() {
+            const tools = document.getElementById('artist-tools');
+            const roleText = document.getElementById('role-display');
+            
+            if (isArtist) {
+                tools.style.display = 'flex';
+                roleText.innerText = "Вы: ХУДОЖНИК 🎨";
+                roleText.style.color = "purple";
+            } else {
+                tools.style.display = 'none';
+                roleText.innerText = "Вы: УГАДЫВАЮЩИЙ 🕵️";
+                roleText.style.color = "blue";
+            }
+        }
+
+        function showWordSelection() {
+            const words = ["Яблоко", "Машина", "Дом", "Кот", "Солнце", "Пицца"];
+            const container = document.getElementById('words-options');
+            container.innerHTML = '';
+            
+            words.forEach(w => {
+                const btn = document.createElement('button');
+                btn.className = 'word-btn';
+                btn.innerText = w;
+                btn.onclick = () => pickWord(w);
+                container.appendChild(btn);
+            });
+            
+            document.getElementById('word-selection').style.display = 'block';
+        }
+
+        function pickWord(word) {
+            currentSecretWord = word;
+            document.getElementById('word-selection').style.display = 'none';
+            document.getElementById('secret-word-mask').innerText = word; // Художник видит слово
+            socket.emit('setSecretWord', word); // Говорим серверу, какое слово загадали
+            addSystemMessage(`Вы выбрали: ${word}. Нарисуйте это!`);
+        }
+
+        // Если мы не художник, и художник выбрал слово
+        socket.on('chatMessage', (data) => {
+             // Это событие приходит и при чате, и при системных сообщениях
+             // Но для уведомления о начале игры лучше отдельный эвент, 
+             // но здесь мы используем факт начала ввода слов.
+        });
+        
+        // Слушаем начало раунда (когда слово выбрано) - упростим:
+        // Просто ждем сообщений в чате.
+
+        // --- РИСОВАНИЕ ---
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        let painting = false;
+        let lineWidth = 5;
+
+        function startPosition(e) {
+            if (!isArtist) return;
+            painting = true;
+            draw(e);
+        }
+        function endPosition() {
+            painting = false;
+            ctx.beginPath();
+        }
+        function draw(e) {
+            if (!painting || !isArtist) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            // Масштабирование координат, если канвас сжат CSS
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = document.getElementById('color-picker').value;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+
+            // Отправляем данные на сервер
+            socket.emit('draw', {
+                x: x, y: y,
+                color: ctx.strokeStyle,
+                width: lineWidth,
+                type: 'draw' // тип действия
+            });
+        }
+        
+        // Обработка входящих линий
+        socket.on('draw', (data) => {
+            ctx.lineWidth = data.width;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = data.color;
+            ctx.lineTo(data.x, data.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(data.x, data.y);
+        });
+
+        // Тач события
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+        
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e.touches[0]); });
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); endPosition(); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
+
+        function changeSize(size) { lineWidth = size; }
+        
+        function clearBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            socket.emit('clearCanvas');
+        }
+        socket.on('clearCanvas', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+
+        // --- ЧАТ ---
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value;
+            if (msg) {
+                socket.emit('chatMessage', { msg: msg, roomId: myRoom });
+                input.value = '';
+            }
+        }
+        
+        document.getElementById('chat-input').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        socket.on('chatMessage', (data) => {
+            const chat = document.getElementById('chat-box');
+            const div = document.createElement('div');
+            div.className = 'msg';
+            
+            if (data.correct) {
+                div.innerHTML = `<span class="system-msg">🎉 ${data.user} угадал слово: ${data.text}!</span>`;
+            } else {
+                div.innerHTML = `<img src="" class="mini-avatar" style="vertical-align:middle"> <b>${data.user}:</b> ${data.text}`;
+                // Маленький хак для аватарки в чате (в реальном проекте лучше URL)
+                div.querySelector('img').alt = data.avatar; 
+                // Так как эмодзи нельзя вставить в img src просто так, отобразим текстом
+                div.innerHTML = `${data.avatar} <b>${data.user}:</b> ${data.text}`;
+            }
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        });
+
+        socket.on('winGame', (word) => {
+            addSystemMessage(`Игра окончена! Слово было: ${word}`);
+            setTimeout(() => {
+                if(confirm("Новый раунд?")) {
+                    location.reload(); // Простая перезагрузка для нового раунда
+                }
+            }, 2000);
+        });
+
+        function addSystemMessage(text) {
+            const chat = document.getElementById('chat-box');
+            const div = document.createElement('div');
+            div.className = 'system-msg';
+            div.innerText = text;
+            chat.appendChild(div);
+        }
+
+        // Утилиты
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'waiting-screen') document.getElementById('display-room-id').innerText = myRoom;
+        }
+
+    </script>
+</body>
+</html>
