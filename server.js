@@ -23,7 +23,7 @@ io.on('connection', (socket) => {
         }
         
         // Ограничение на 2 игрока для простоты
-        if (Object.keys(rooms[roomId].players).length >= 5) {
+        if (Object.keys(rooms[roomId].players).length >= 7) {
             socket.emit('errorMsg', 'Комната переполнена!');
             return;
         }
